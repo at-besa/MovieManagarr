@@ -4,7 +4,6 @@ import { ref } from 'vue'
 import { useHealthCheck } from './composables/useHealthCheck'
 
 const { isBackendOffline, isDbOffline, checkHealth } = useHealthCheck()
-const isSidebarOpen = ref(true)
 </script>
 
 <template>

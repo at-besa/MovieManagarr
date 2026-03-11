@@ -43,8 +43,6 @@ const jobSpeed = ref(0)
 const jobBitrate = ref('')
 const jobEtaSeconds = ref(0)
 
-const isJobRunning = computed(() => isTranscoding.value || jobStatus.value === 'Running')
-
 // Transcode settings
 const qualityPreset = ref('balanced')
 const customCrf = ref<number | ''>('')

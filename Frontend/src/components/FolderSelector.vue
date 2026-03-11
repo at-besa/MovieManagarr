@@ -53,10 +53,11 @@ const selectDirectory = (dir: string) => {
     }
 
     const parts = currentPath.value.split(/[/\\]/).filter(p => p)
+    const firstPart = parts[0]
     parts.pop()
     
-    if (parts.length === 1 && /^[a-zA-Z]:$/.test(parts[0])) {
-      fetchDirectories(parts[0] + '\\')
+    if (parts.length === 1 && firstPart && /^[a-zA-Z]:$/.test(firstPart)) {
+      fetchDirectories(firstPart + '\\')
     } else if (parts.length > 0) {
       fetchDirectories(parts.join('\\'))
     } else {

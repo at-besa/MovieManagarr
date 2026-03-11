@@ -30,6 +30,7 @@ const router = createRouter({
     {
       path: '/player',
       name: 'player',
+      // @ts-ignore: Dynamic import of .vue file
       component: () => import('../views/PlayerView.vue')
     }
   ]

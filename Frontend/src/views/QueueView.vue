@@ -84,7 +84,7 @@ const searchTmdb = async () => {
         const res = await api.get(url)
         searchResults.value = res.data || []
         if (searchResults.value.length > 0) {
-            selectedMatch.value = searchResults.value[0] // Auto-select first
+            selectedMatch.value = searchResults.value[0] || null // Ensure no undefined
         }
     } catch (err) {
         console.error("Search failed:", err)
