@@ -14,6 +14,7 @@
 [Ll]ogs/
 [Dd]ebug/
 [Rr]elease/
+[Pp]ublish/
 artifacts/
 project.lock.json
 project.fragment.lock.json
@@ -24,6 +25,7 @@ project.fragment.lock.json
 [Bb]uild[Ll]og.*
 build.log
 build_output.txt
+build_error.txt
 *.http
 TestResult.xml
 nunit-*.xml

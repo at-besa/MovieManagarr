@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '../services/api'
+
+const router = useRouter()
 
 interface MediaMetadata {
     id: number;
@@ -196,12 +199,21 @@ onMounted(() => {
                     <div v-else class="w-10 h-10 rounded bg-blue-900/30 flex items-center justify-center text-blue-400 shrink-0">
                         <i class="fas fa-file-video text-lg"></i>
                     </div>
-                    <div class="flex-1 min-w-0 flex items-center gap-4">
-                        <div class="flex-1">
-                            <p class="text-sm font-medium text-gray-200 truncate">{{ item.file }}</p>
-                            <p class="text-xs text-blue-400 mt-1" v-if="expandedFile === item.file">Configure matching details below...</p>
-                            <p class="text-xs text-gray-500 mt-1" v-else>Click to match and process...</p>
-                        </div>
+                        <div class="flex-1 min-w-0 flex items-center gap-4">
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-gray-200 truncate">{{ item.file }}</p>
+                                <p class="text-xs text-blue-400 mt-1" v-if="expandedFile === item.file">Configure matching details below...</p>
+                                <p class="text-xs text-gray-500 mt-1" v-else>Click to match and process...</p>
+                            </div>
+
+                            <!-- Play Button -->
+                            <button 
+                                @click.stop="router.push({ name: 'player', query: { path: item.file, title: item.autoMatch.title || item.file } })"
+                                class="px-3 py-1.5 rounded-lg bg-gray-700/50 hover:bg-blue-600/50 text-gray-200 hover:text-white flex items-center gap-2 transition-all border border-gray-600/50 hover:border-blue-500/50 text-xs font-medium shadow-sm"
+                                title="Play file"
+                            >
+                                <i class="fas fa-play"></i> Play
+                            </button>
                         <div class="hidden md:flex items-center gap-2 bg-gray-900/50 px-3 py-1.5 rounded-lg border border-gray-700/50" v-if="item.autoMatch.title">
                             <i class="fas fa-magic text-purple-400 text-xs text-opacity-80"></i>
                             <span class="text-xs font-semibold text-gray-300">

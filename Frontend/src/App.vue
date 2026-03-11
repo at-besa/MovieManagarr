@@ -89,7 +89,7 @@ const isSidebarOpen = ref(true)
             </span>
           </div>
           <span class="font-mono text-[10px] bg-gray-800 border border-gray-700/50 text-gray-400 group-hover:text-blue-400 px-1.5 py-0.5 rounded transition-colors shadow-inner">
-            v1.0.0
+            v1.1.0
           </span>
         </RouterLink>
       </div>

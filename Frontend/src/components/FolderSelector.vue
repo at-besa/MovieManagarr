@@ -101,66 +101,67 @@ watch(() => props.modelValue, (newVal) => {
     </div>
 
     <!-- Modal -->
-    <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div class="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col h-[70vh]">
-        
-        <!-- Header -->
-        <div class="px-6 py-4 border-b border-gray-700 flex justify-between items-center bg-gray-800/50">
-          <h3 class="text-lg font-semibold text-gray-100">Select Directory</h3>
-          <button @click="closeModal" class="text-gray-400 hover:text-gray-200 transition-colors">
-            <i class="fas fa-times text-xl"></i>
-          </button>
-        </div>
-
-        <!-- Current Path Display -->
-        <div class="px-6 py-3 bg-gray-900 border-b border-gray-700 text-sm text-gray-300 font-mono flex items-center gap-2">
-            <i class="fas fa-hdd text-blue-400"></i>
-            {{ currentPath || 'This PC' }}
-        </div>
-
-        <!-- Directory List -->
-        <div class="flex-1 overflow-y-auto p-2 space-y-1">
-          <div v-if="isLoading" class="flex justify-center py-8">
-            <i class="fas fa-spinner animate-spin text-3xl text-blue-500"></i>
+    <Teleport to="body">
+      <div v-if="isOpen" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div class="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col h-[70vh]">
+          
+          <!-- Header -->
+          <div class="px-6 py-4 border-b border-gray-700 flex justify-between items-center bg-gray-800/50">
+            <h3 class="text-lg font-semibold text-gray-100">Select Directory</h3>
+            <button @click="closeModal" class="text-gray-400 hover:text-gray-200 transition-colors">
+              <i class="fas fa-times text-xl"></i>
+            </button>
           </div>
-          <template v-else>
-            <button 
-                v-if="currentPath"
-                @click="selectDirectory('..')"
-                class="w-full text-left px-4 py-3 rounded hover:bg-gray-700/50 text-gray-300 flex items-center transition-colors"
-            >
-                <i class="fas fa-level-up-alt mr-3 text-gray-500"></i> ..
-            </button>
-            <button 
-                v-for="dir in directories" :key="dir"
-                @click="selectDirectory(dir)"
-                class="w-full text-left px-4 py-3 rounded hover:bg-blue-600/20 hover:text-blue-400 text-gray-300 flex items-center transition-colors"
-            >
-                <i class="fas fa-folder mr-3 text-blue-500"></i> {{ dir === '\\' ? dir : (dir.split(/[/\\]/).pop() || dir) }}
-            </button>
-            <div v-if="directories.length === 0" class="text-center py-8 text-gray-500">
-                No directories found.
+
+          <!-- Current Path Display -->
+          <div class="px-6 py-3 bg-gray-900 border-b border-gray-700 text-sm text-gray-300 font-mono flex items-center gap-2">
+              <i class="fas fa-hdd text-blue-400"></i>
+              {{ currentPath || 'This PC' }}
+          </div>
+
+          <!-- Directory List -->
+          <div class="flex-1 overflow-y-auto p-2 space-y-1">
+            <div v-if="isLoading" class="flex justify-center py-8">
+              <i class="fas fa-spinner animate-spin text-3xl text-blue-500"></i>
             </div>
-          </template>
-        </div>
+            <template v-else>
+              <button 
+                  v-if="currentPath"
+                  @click="selectDirectory('..')"
+                  class="w-full text-left px-4 py-3 rounded hover:bg-gray-700/50 text-gray-300 flex items-center transition-colors"
+              >
+                  <i class="fas fa-level-up-alt mr-3 text-gray-500"></i> ..
+              </button>
+              <button 
+                  v-for="dir in directories" :key="dir"
+                  @click="selectDirectory(dir)"
+                  class="w-full text-left px-4 py-3 rounded hover:bg-blue-600/20 hover:text-blue-400 text-gray-300 flex items-center transition-colors"
+              >
+                  <i class="fas fa-folder mr-3 text-blue-500"></i> {{ dir === '\\' ? dir : (dir.split(/[/\\]/).pop() || dir) }}
+              </button>
+              <div v-if="directories.length === 0" class="text-center py-8 text-gray-500">
+                  No directories found.
+              </div>
+            </template>
+          </div>
 
-        <!-- Footer Actions -->
-        <div class="px-6 py-4 border-t border-gray-700 bg-gray-800/50 flex justify-end gap-3">
-          <button 
-            @click="closeModal"
-            class="px-5 py-2 rounded border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors"
-          >
-            Cancel
-          </button>
-          <button 
-            @click="confirmSelection"
-            class="px-5 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium shadow-lg hover:shadow-blue-500/20"
-          >
-            Select Current Folder
-          </button>
+          <!-- Footer Actions -->
+          <div class="px-6 py-4 border-t border-gray-700 bg-gray-800/50 flex justify-end gap-3">
+            <button 
+              @click="closeModal"
+              class="px-5 py-2 rounded border border-gray-600 text-gray-300 hover:bg-gray-700 transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              @click="confirmSelection"
+              class="px-5 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium shadow-lg hover:shadow-blue-500/20"
+            >
+              Select Current Folder
+            </button>
+          </div>
         </div>
-
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>

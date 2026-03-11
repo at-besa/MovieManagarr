@@ -168,13 +168,17 @@ namespace Backend.Controllers
                     progressPercent = job.ProgressPercent,
                     status = job.Status,
                     actualOutputBytes = job.ActualOutputBytes,
-                    errorMessage = job.ErrorMessage
+                    errorMessage = job.ErrorMessage,
+                    fps = job.Fps,
+                    speed = job.Speed,
+                    currentBitrate = job.CurrentBitrate,
+                    etaSeconds = job.Eta?.TotalSeconds ?? 0
                 });
 
                 await Response.WriteAsync($"data: {data}\n\n");
                 await Response.Body.FlushAsync();
 
-                if (job.Status == "Done" || job.Status == "Failed") break;
+                if (job.Status == "Done" || job.Status == "Failed" || job.Status == "Canceled") break;
 
                 await Task.Delay(1000);
             }
@@ -216,6 +220,72 @@ namespace Backend.Controllers
 
             var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
             return File(stream, "video/mp4", enableRangeProcessing: true);
+        }
+
+        /// <summary>
+        /// Stream a video file with support for HTTP Range Requests.
+        /// </summary>
+        [HttpGet("stream")]
+        public async Task<IActionResult> Stream([FromQuery] string path)
+        {
+            Console.WriteLine($"[STREAM] Request for: {path}");
+            if (string.IsNullOrWhiteSpace(path) || !System.IO.File.Exists(path))
+            {
+                Console.WriteLine($"[STREAM] File NOT FOUND at: {path}");
+                return NotFound(new { message = "File not found." });
+            }
+
+            var config = await context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
+            
+            // Basic security check: ensure the path is within one of our configured directories
+            bool isAllowed = false;
+            if (config != null)
+            {
+                var allowedDirs = new[] { config.SourceDir, config.TargetMovieDir, config.TargetSeriesDir };
+                foreach (var dir in allowedDirs)
+                {
+                    if (!string.IsNullOrWhiteSpace(dir) && path.StartsWith(dir, StringComparison.OrdinalIgnoreCase))
+                    {
+                        isAllowed = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!isAllowed)
+            {
+                Console.WriteLine($"[STREAM] Access FORBIDDEN for: {path}. Configuration dirs: {config?.SourceDir}, {config?.TargetMovieDir}, {config?.TargetSeriesDir}");
+                return Forbid();
+            }
+
+            // Detect content type
+            string contentType = "video/mp4";
+            string ext = Path.GetExtension(path).ToLowerInvariant();
+            if (ext == ".mkv") contentType = "video/x-matroska";
+            else if (ext == ".avi") contentType = "video/x-msvideo";
+            else if (ext == ".webm") contentType = "video/webm";
+
+            // Add simple CORS header just for the stream to be safe with ORB/CORS media requests
+            Response.Headers.Append("Access-Control-Allow-Origin", "*");
+
+            // PhysicalFile built-in handles Range headers automatically
+            return PhysicalFile(path, contentType, enableRangeProcessing: true);
+        }
+
+        [HttpGet("relative-path")]
+        public IActionResult GetRelativePath([FromQuery] string path)
+        {
+             if (string.IsNullOrWhiteSpace(path)) return BadRequest();
+             
+             var config = context.Settings.OrderBy(s => s.Id).FirstOrDefault();
+             if (config == null) return BadRequest();
+
+             string rel = "";
+             if (!string.IsNullOrEmpty(config.SourceDir) && path.StartsWith(config.SourceDir, StringComparison.OrdinalIgnoreCase)) rel = Path.GetRelativePath(config.SourceDir, path);
+             else if (!string.IsNullOrEmpty(config.TargetMovieDir) && path.StartsWith(config.TargetMovieDir, StringComparison.OrdinalIgnoreCase)) rel = Path.GetRelativePath(config.TargetMovieDir, path);
+             else if (!string.IsNullOrEmpty(config.TargetSeriesDir) && path.StartsWith(config.TargetSeriesDir, StringComparison.OrdinalIgnoreCase)) rel = Path.GetRelativePath(config.TargetSeriesDir, path);
+
+             return Ok(new { relativePath = rel });
         }
     }
 

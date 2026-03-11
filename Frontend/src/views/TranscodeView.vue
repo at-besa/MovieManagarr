@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '../services/api'
+
+const router = useRouter()
 
 interface FileItem {
     path: string;
@@ -34,6 +37,14 @@ const isTranscoding = ref(false)
 const isGeneratingPreview = ref(false)
 const previewError = ref('')
 
+// Telemetry State
+const jobFps = ref(0)
+const jobSpeed = ref(0)
+const jobBitrate = ref('')
+const jobEtaSeconds = ref(0)
+
+const isJobRunning = computed(() => isTranscoding.value || jobStatus.value === 'Running')
+
 // Transcode settings
 const qualityPreset = ref('balanced')
 const customCrf = ref<number | ''>('')
@@ -48,6 +59,7 @@ const savingsPercent = ref(0)
 
 // Job tracking
 const currentJobId = ref('')
+const activeEventSource = ref<EventSource | null>(null)
 const jobProgress = ref(0)
 const jobStatus = ref('')
 const jobError = ref('')
@@ -151,6 +163,12 @@ const startTranscode = async () => {
     jobStatus.value = 'Starting...'
     jobError.value = ''
     actualOutputBytes.value = 0
+    
+    // Reset Telemetry
+    jobFps.value = 0
+    jobSpeed.value = 0
+    jobBitrate.value = ''
+    jobEtaSeconds.value = 0
 
     try {
         const res = await api.post('/transcode/start', {
@@ -168,20 +186,29 @@ const startTranscode = async () => {
 
         // Start SSE progress tracking
         const origin = window.location.origin === 'http://localhost:9999' ? 'http://localhost:5294' : window.location.origin
-        const eventSource = new EventSource(`${origin}/api/transcode/progress/${res.data.jobId}`)
         
-        eventSource.onmessage = (event) => {
+        if (activeEventSource.value) {
+            activeEventSource.value.close()
+        }
+        activeEventSource.value = new EventSource(`${origin}/api/transcode/progress/${res.data.jobId}`)
+        
+        activeEventSource.value.onmessage = (event) => {
             const data = JSON.parse(event.data)
             jobProgress.value = Math.round(data.progressPercent * 10) / 10
             jobStatus.value = data.status
             actualOutputBytes.value = data.actualOutputBytes
+            jobFps.value = data.fps || 0
+            jobSpeed.value = data.speed || 0
+            jobBitrate.value = data.currentBitrate || ''
+            jobEtaSeconds.value = data.etaSeconds || 0
 
             if (data.errorMessage) {
                 jobError.value = data.errorMessage
             }
 
-            if (data.status === 'Done' || data.status === 'Failed') {
-                eventSource.close()
+            if (data.status === 'Done' || data.status === 'Failed' || data.status === 'Canceled') {
+                if (activeEventSource.value) activeEventSource.value.close()
+                activeEventSource.value = null
                 isTranscoding.value = false
                 if (data.status === 'Failed' && !data.errorMessage) {
                     jobError.value = 'Transcode failed.'
@@ -189,8 +216,9 @@ const startTranscode = async () => {
             }
         }
 
-        eventSource.onerror = () => {
-            eventSource.close()
+        activeEventSource.value.onerror = () => {
+            if (activeEventSource.value) activeEventSource.value.close()
+            activeEventSource.value = null
             // Fallback to polling
             pollJobStatus()
         }
@@ -230,6 +258,10 @@ const pollJobStatus = async () => {
 const cancelTranscode = async () => {
     if (!currentJobId.value || !isTranscoding.value) return
     try {
+        if (activeEventSource.value) {
+            activeEventSource.value.close()
+            activeEventSource.value = null
+        }
         await api.post(`/transcode/cancel/${currentJobId.value}`)
         jobStatus.value = 'Canceled'
         isTranscoding.value = false
@@ -255,12 +287,45 @@ const formatDuration = (seconds: number) => {
     return h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`
 }
 
+const playVideo = (path: string, fileName: string) => {
+    router.push({ name: 'player', query: { path, title: fileName } })
+}
+
+const playTranscodedResult = async () => {
+    if (!currentJobId.value) return
+    try {
+        const res = await api.get(`/transcode/status/${currentJobId.value}`)
+        if (res.data.status === 'Done') {
+            const fileName = res.data.sourcePath.split(/[\\/]/).pop()
+             // Use the outputPath from the job record which is next to the source
+            router.push({ 
+                name: 'player', 
+                query: { 
+                    path: res.data.outputPath, 
+                    title: `HEVC: ${fileName}` 
+                } 
+            })
+        }
+    } catch (e) { console.error(e) }
+}
+
 // Re-estimate when settings change
 watch([qualityPreset, customCrf, hwAcceleration, copyAudio, targetResolution], () => {
     if (selectedFile.value && analysis.value) {
         updateEstimate()
     }
 })
+
+const formatTime = (totalSeconds: number) => {
+    if (totalSeconds <= 0) return '--:--'
+    
+    const h = Math.floor(totalSeconds / 3600)
+    const m = Math.floor((totalSeconds % 3600) / 60)
+    const s = Math.floor(totalSeconds % 60)
+    
+    if (h > 0) return `${h}h ${m.toString().padStart(2, '0')}m`
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+}
 
 onMounted(() => {
     loadFiles()
@@ -321,17 +386,28 @@ onMounted(() => {
             <li 
               v-for="file in filteredFiles" :key="file.path"
               @click="selectFile(file)"
-              class="px-4 py-3 cursor-pointer transition-colors hover:bg-gray-700/30"
-              :class="selectedFile?.path === file.path ? 'bg-blue-600/10 border-l-2 border-blue-500' : 'border-l-2 border-transparent'"
+              class="px-4 py-3 cursor-pointer transition-all hover:bg-gray-700/30 flex items-center gap-3 group"
+              :class="selectedFile?.path === file.path ? 'bg-blue-600/10 border-l-2 border-blue-500 shadow-inner' : 'border-l-2 border-transparent'"
             >
-              <p class="text-sm text-gray-200 truncate font-medium">{{ file.fileName }}</p>
-              <div class="flex items-center gap-2 mt-1">
-                <span class="text-[10px] px-1.5 py-0.5 rounded" 
-                  :class="file.directory === 'Movies' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'">
-                  {{ file.directory }}
-                </span>
-                <span class="text-xs text-gray-500">{{ formatBytes(file.sizeBytes) }}</span>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm text-gray-200 truncate font-medium">{{ file.fileName }}</p>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="text-[10px] px-1.5 py-0.5 rounded" 
+                    :class="file.directory === 'Movies' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'">
+                    {{ file.directory }}
+                  </span>
+                  <span class="text-xs text-gray-500">{{ formatBytes(file.sizeBytes) }}</span>
+                </div>
               </div>
+
+              <!-- Play Button (only visible on hover or if selected) -->
+              <button 
+                @click.stop="playVideo(file.path, file.fileName)"
+                class="opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-lg bg-gray-700/50 hover:bg-blue-600 text-gray-200 hover:text-white flex items-center gap-2 transition-all text-xs font-medium border border-gray-600/50 hover:border-blue-500/50 shadow-sm"
+                title="Play file"
+              >
+                <i class="fas fa-play"></i> Play
+              </button>
             </li>
           </ul>
         </div>
@@ -483,7 +559,7 @@ onMounted(() => {
           <!-- Preview Section -->
           <div class="bg-gray-800/50 border border-gray-700/50 rounded-xl p-5 shadow-xl backdrop-blur-sm">
             <div class="flex items-center gap-3 mb-4">
-              <i class="fas fa-play-circle text-green-400"></i>
+              <i class="fas fa-eye text-blue-400"></i>
               <h3 class="text-sm font-semibold text-gray-200">Preview & Actions</h3>
             </div>
             
@@ -523,40 +599,87 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- Progress Bar (during transcode) -->
-          <div v-if="isTranscoding || jobStatus === 'Done' || jobStatus === 'Failed' || jobStatus === 'Canceled'" class="bg-gray-800/50 border border-gray-700/50 rounded-xl p-5 shadow-xl backdrop-blur-sm">
-            <div class="flex items-center gap-3 mb-3">
-              <i class="fas" :class="jobStatus === 'Done' ? 'fa-check-circle text-green-400' : (jobStatus === 'Failed' || jobStatus === 'Canceled') ? 'fa-times-circle text-red-400' : 'fa-cog fa-spin text-blue-400'"></i>
-              <h3 class="text-sm font-semibold text-gray-200">
-                {{ jobStatus === 'Done' ? 'Transcode Complete!' : jobStatus === 'Failed' ? 'Transcode Failed' : jobStatus === 'Canceled' ? 'Transcode Canceled' : 'Transcoding in Progress...' }}
+          <!-- Progress Bar & Telemetry Dashboard (during transcode) -->
+          <div v-if="isTranscoding || jobStatus === 'Done' || jobStatus === 'Failed' || jobStatus === 'Canceled'" class="bg-gray-800/50 border border-t-[3px] border-b-0 border-l-0 border-r-0 border-gray-700/50 rounded-xl p-5 shadow-2xl backdrop-blur-md" :class="(jobStatus === 'Running' || isTranscoding) ? 'border-t-blue-500' : jobStatus === 'Done' ? 'border-t-green-500' : 'border-t-red-500'">
+            
+            <!-- Header -->
+            <div class="flex items-center gap-3 mb-5">
+              <i class="fas text-lg" :class="jobStatus === 'Done' ? 'fa-check-circle text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.5)]' : (jobStatus === 'Failed' || jobStatus === 'Canceled') ? 'fa-times-circle text-red-400' : 'fa-cog fa-spin text-blue-400 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]'"></i>
+              <h3 class="text-base font-bold text-gray-100 uppercase tracking-widest text-shadow-sm">
+                {{ jobStatus === 'Done' ? 'Transcode Complete' : jobStatus === 'Failed' ? 'Transcode Failed' : jobStatus === 'Canceled' ? 'Transcode Canceled' : 'Transcoding...' }}
               </h3>
               
               <div class="ml-auto flex items-center gap-4">
-                <span class="text-sm font-mono text-blue-400">{{ jobProgress.toFixed(1) }}%</span>
                 <button 
                   v-if="isTranscoding || jobStatus === 'Running'"
                   @click="cancelTranscode"
-                  class="bg-red-500/20 hover:bg-red-500/40 border border-red-500/50 text-red-400 hover:text-red-300 px-3 py-1 rounded text-xs font-bold transition-colors flex items-center gap-1"
+                  class="bg-red-500/20 hover:bg-red-500 hover:shadow-[0_0_12px_rgba(239,68,68,0.4)] border border-red-500/50 text-red-400 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2"
                 >
-                  <i class="fas fa-stop"></i> Cancel
+                  <i class="fas fa-stop"></i> Abort
                 </button>
               </div>
             </div>
             
-            <div class="w-full bg-gray-700/50 rounded-full h-3 overflow-hidden">
-              <div 
-                class="h-full rounded-full transition-all duration-500"
-                :class="jobStatus === 'Done' ? 'bg-green-500' : (jobStatus === 'Failed' || jobStatus === 'Canceled') ? 'bg-red-500' : 'bg-gradient-to-r from-blue-500 to-purple-500'"
-                :style="{ width: `${jobProgress}%` }"
-              ></div>
+            <!-- Telemetry Metrics Grid -->
+            <div v-if="isTranscoding || jobStatus === 'Running'" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+                <!-- Speed -->
+                <div class="bg-gray-900/60 border border-gray-700/50 rounded-lg p-3 relative overflow-hidden">
+                    <div class="absolute inset-0 bg-blue-500/5 blur-xl"></div>
+                    <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1 relative z-10"><i class="fas fa-tachometer-alt mr-1"></i> Encoding Speed</p>
+                    <p class="text-2xl font-mono text-gray-100 relative z-10">{{ jobSpeed > 0 ? jobSpeed.toFixed(2) + 'x' : '--' }}</p>
+                </div>
+
+                <!-- FPS -->
+                <div class="bg-gray-900/60 border border-gray-700/50 rounded-lg p-3 relative overflow-hidden">
+                    <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1 relative z-10"><i class="fas fa-film mr-1"></i> Framerate (FPS)</p>
+                    <p class="text-2xl font-mono text-gray-100 relative z-10">{{ jobFps > 0 ? jobFps.toFixed(0) : '--' }}</p>
+                </div>
+
+                <!-- Bitrate -->
+                <div class="bg-gray-900/60 border border-gray-700/50 rounded-lg p-3 relative overflow-hidden">
+                    <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1 relative z-10"><i class="fas fa-network-wired mr-1"></i> Output Bitrate</p>
+                    <p class="text-2xl font-mono text-gray-100 relative z-10 text-sm mt-1 sm:text-lg lg:text-xl">{{ jobBitrate || '--' }}</p>
+                </div>
+
+                <!-- ETA -->
+                <div class="bg-gray-900/60 border border-gray-700/50 rounded-lg p-3 relative overflow-hidden border-b-2 border-b-purple-500/50 shadow-[0_4px_16px_rgba(168,85,247,0.1)]">
+                    <p class="text-[10px] text-gray-400 uppercase tracking-widest font-semibold mb-1 relative z-10"><i class="far fa-clock mr-1"></i> Time Remaining</p>
+                    <p class="text-2xl font-mono text-purple-400 relative z-10 drop-shadow-[0_0_8px_rgba(168,85,247,0.4)]">{{ formatTime(jobEtaSeconds) }}</p>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="relative">
+                <div class="flex justify-between text-xs font-mono font-bold uppercase text-gray-400 mb-2">
+                    <span>Progress</span>
+                    <span :class="jobStatus === 'Done' ? 'text-green-400' : 'text-blue-400'">{{ jobProgress.toFixed(1) }}%</span>
+                </div>
+                <div class="w-full bg-gray-900/80 rounded-full h-4 overflow-hidden shadow-inner border border-gray-700/30">
+                  <div 
+                    class="h-full rounded-full transition-all duration-500 relative"
+                    :class="jobStatus === 'Done' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : (jobStatus === 'Failed' || jobStatus === 'Canceled') ? 'bg-red-500' : 'bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 shadow-[0_0_15px_rgba(99,102,241,0.5)]'"
+                    :style="{ width: `${jobProgress}%` }"
+                  >
+                    <!-- Animated stripes for running state -->
+                    <div v-if="isTranscoding || jobStatus === 'Running'" class="absolute inset-0 w-full h-full opacity-30" style="background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.15) 75%, transparent 75%, transparent); background-size: 1rem 1rem; animation: progress-stripes 1s linear infinite;"></div>
+                  </div>
+                </div>
             </div>
 
             <div v-if="jobError" class="mt-3 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
               <i class="fas fa-exclamation-triangle mr-1"></i> {{ jobError }}
             </div>
 
-            <div v-if="jobStatus === 'Done' && actualOutputBytes > 0" class="mt-3 text-sm text-green-400">
-              <i class="fas fa-check mr-1"></i> Final output: {{ formatBytes(actualOutputBytes) }} (estimated was ~{{ formatBytes(estimatedBytes) }})
+            <div v-if="jobStatus === 'Done' && actualOutputBytes > 0" class="mt-3 flex items-center justify-between">
+              <div class="text-sm text-green-400">
+                <i class="fas fa-check mr-1"></i> Final output: {{ formatBytes(actualOutputBytes) }} (estimated was ~{{ formatBytes(estimatedBytes) }})
+              </div>
+              <button 
+                @click="playTranscodedResult"
+                class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-green-500/20"
+              >
+                <i class="fas fa-play"></i> Watch Result
+              </button>
             </div>
           </div>
 
@@ -566,3 +689,10 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+@keyframes progress-stripes {
+  from { background-position: 1rem 0; }
+  to { background-position: 0 0; }
+}
+</style>

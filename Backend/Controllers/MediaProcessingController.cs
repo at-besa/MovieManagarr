@@ -35,7 +35,6 @@ namespace Backend.Controllers
                 .Where(f => extensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
                 .Where(f => !Path.GetFileName(f).ToLowerInvariant().Contains("sample"))
                 .Where(f => !ignoreList.Any(ignore => f.Contains(ignore, StringComparison.OrdinalIgnoreCase)))
-                .Select(f => Path.GetRelativePath(config.SourceDir, f))
                 .ToList();
 
             var resultList = new List<object>();

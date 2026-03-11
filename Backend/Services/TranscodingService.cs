@@ -252,6 +252,51 @@ namespace Backend.Services
                             }
                         };
 
+                        conversion.OnDataReceived += (sender, dataArgs) =>
+                        {
+                            if (cts.IsCancellationRequested || string.IsNullOrWhiteSpace(dataArgs.Data)) return;
+
+                            var line = dataArgs.Data;
+                            
+                            // Parse fps= 123
+                            var fpsMatch = System.Text.RegularExpressions.Regex.Match(line, @"fps=\s*([\d\.]+)");
+                            if (fpsMatch.Success && double.TryParse(fpsMatch.Groups[1].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double fps))
+                            {
+                                job.Fps = fps;
+                            }
+
+                            // Parse speed=1.23x
+                            var speedMatch = System.Text.RegularExpressions.Regex.Match(line, @"speed=\s*([\d\.]+)x");
+                            if (speedMatch.Success && double.TryParse(speedMatch.Groups[1].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double speed))
+                            {
+                                job.Speed = speed;
+
+                                // Calculate ETA based on speed
+                                if (speed > 0 && mediaInfo.Duration.TotalSeconds > 0 && job.ProgressPercent < 100)
+                                {
+                                    double secondsRemaining = (mediaInfo.Duration.TotalSeconds * (1 - (job.ProgressPercent / 100.0))) / speed;
+                                    if (secondsRemaining > 0 && secondsRemaining < 86400) // Sanity check < 24h
+                                    {
+                                        job.Eta = TimeSpan.FromSeconds(secondsRemaining);
+                                    }
+                                }
+                            }
+
+                            // Parse bitrate=2500.0kbits/s
+                            var bitrateMatch = System.Text.RegularExpressions.Regex.Match(line, @"bitrate=\s*([\d\.]+kbits/s)");
+                            if (bitrateMatch.Success)
+                            {
+                                job.CurrentBitrate = bitrateMatch.Groups[1].Value;
+                            }
+
+                            // Parse frame= 1234
+                            var frameMatch = System.Text.RegularExpressions.Regex.Match(line, @"frame=\s*(\d+)");
+                            if (frameMatch.Success && long.TryParse(frameMatch.Groups[1].Value, out long frame))
+                            {
+                                job.EncodedFrames = frame;
+                            }
+                        };
+
                         try
                         {
                             await conversion.Start(cts.Token);

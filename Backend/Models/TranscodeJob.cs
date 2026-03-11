@@ -6,6 +6,11 @@ namespace Backend.Models
         public string SourcePath { get; set; } = string.Empty;
         public string OutputPath { get; set; } = string.Empty;
         public double ProgressPercent { get; set; }
+        public double Fps { get; set; }
+        public double Speed { get; set; }
+        public string CurrentBitrate { get; set; } = string.Empty;
+        public TimeSpan? Eta { get; set; }
+        public long EncodedFrames { get; set; }
         public string Status { get; set; } = "Queued"; // Queued, Running, Done, Failed
         public string? ErrorMessage { get; set; }
         public long EstimatedOutputBytes { get; set; }
