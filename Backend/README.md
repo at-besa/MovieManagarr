@@ -12,9 +12,9 @@ The robust, high-performance C# .NET API that powers the MovieManager file inges
 
 ## 🛠️ Tech Stack
 
-- **Framework**: .NET 9.0 ASP.NET Core Web API
-- **ORM**: Entity Framework Core 9.0 (Code-First Migrations)
-- **Database**: PostgreSQL 17
+- **Framework**: .NET 10.0 ASP.NET Core Web API
+- **ORM**: Entity Framework Core 10.0 (Code-First Migrations)
+- **Database**: PostgreSQL 15
 - **Media Parsing**: `Xabe.FFmpeg`
 - **Dependency Injection**: Scoped/Transient Service Locator pattern
 - **Concurrency**: Asynchronous tasks and `ConcurrentDictionary` multi-threading
@@ -24,7 +24,7 @@ The robust, high-performance C# .NET API that powers the MovieManager file inges
 The backend API defaults to listening on `http://localhost:5294`. It exposes its Swagger/OpenAPI spec when running in a `Development` environment.
 
 ### Prerequisites
-- .NET 9 SDK
+- .NET 10 SDK
 - FFmpeg installed locally and accessible via CLI
 - Docker Desktop (for Postgres DB)
 

@@ -18,8 +18,8 @@ Built from the ground up to handle massive local media archives, MovieManager re
 ## 🏗️ Architecture Stack
 
 ### Backend
-*   **Framework**: .NET 9 ASP.NET Core Web API
-*   **Database**: PostgreSQL 17 (via Entity Framework Core & Docker)
+*   **Framework**: .NET 10 ASP.NET Core Web API
+*   **Database**: PostgreSQL 15 (via Entity Framework Core 10.0 & Docker)
 *   **Transcoding Engine**: `Xabe.FFmpeg`
 *   **Subtitle Engine**: `ahmetoner/whisper-asr-webservice` (Local Docker)
 
