@@ -22,6 +22,9 @@ project.fragment.lock.json
 *.binlog
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
+build.log
+build_output.txt
+*.http
 TestResult.xml
 nunit-*.xml
 
