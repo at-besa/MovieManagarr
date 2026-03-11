@@ -9,14 +9,8 @@ namespace Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class SystemController : ControllerBase
+    public class SystemController(AppDbContext context) : ControllerBase
     {
-        private readonly AppDbContext context;
-
-        public SystemController(AppDbContext context)
-        {
-            this.context = context;
-        }
 
         [HttpGet("info")]
         public async Task<IActionResult> GetSystemInfo()

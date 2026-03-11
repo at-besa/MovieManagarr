@@ -8,24 +8,12 @@ namespace Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class MediaProcessingController : ControllerBase
+    public class MediaProcessingController(
+        AppDbContext context, 
+        IMediaProcessorService processor,
+        IRenamerService renamer,
+        ITmdbService tmdb) : ControllerBase
     {
-        private readonly AppDbContext context;
-        private readonly IMediaProcessorService processor;
-        private readonly IRenamerService renamer;
-        private readonly ITmdbService tmdb;
-
-        public MediaProcessingController(
-            AppDbContext context, 
-            IMediaProcessorService processor,
-            IRenamerService renamer,
-            ITmdbService tmdb)
-        {
-            this.context = context;
-            this.processor = processor;
-            this.renamer = renamer;
-            this.tmdb = tmdb;
-        }
 
         [HttpGet("queue")]
         public async Task<IActionResult> GetQueue()

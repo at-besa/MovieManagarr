@@ -8,18 +8,8 @@ namespace Backend.Controllers
 {
     [ApiController]
     [Route("api/transcode")]
-    public class TranscodingController : ControllerBase
+    public class TranscodingController(AppDbContext context, IMediaAnalysisService analyzer, ITranscodingService transcoder) : ControllerBase
     {
-        private readonly AppDbContext context;
-        private readonly IMediaAnalysisService analyzer;
-        private readonly ITranscodingService transcoder;
-
-        public TranscodingController(AppDbContext context, IMediaAnalysisService analyzer, ITranscodingService transcoder)
-        {
-            this.context = context;
-            this.analyzer = analyzer;
-            this.transcoder = transcoder;
-        }
 
         /// <summary>
         /// Lists all video files from target movie and series directories for transcode selection.

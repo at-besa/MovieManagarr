@@ -2,17 +2,11 @@ using Backend.Services.Interfaces;
 
 namespace Backend.Services
 {
-    public class FileSystemMonitorService : IFileSystemMonitorService, IDisposable
+    public class FileSystemMonitorService(IServiceScopeFactory scopeFactory) : IFileSystemMonitorService, IDisposable
     {
         private FileSystemWatcher? watcher;
-        private readonly IServiceScopeFactory scopeFactory;
         
         public event EventHandler<string>? OnFileDetected;
-
-        public FileSystemMonitorService(IServiceScopeFactory scopeFactory)
-        {
-            this.scopeFactory = scopeFactory;
-        }
 
         public void StartMonitoring(string directoryPath)
         {

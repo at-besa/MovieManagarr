@@ -6,14 +6,8 @@ using TMDbLib.Client;
 
 namespace Backend.Services
 {
-    public class TmdbService : ITmdbService
+    public class TmdbService(AppDbContext context) : ITmdbService
     {
-        private readonly AppDbContext context;
-
-        public TmdbService(AppDbContext context)
-        {
-            this.context = context;
-        }
 
         private async Task<TMDbClient> GetClientAsync()
         {

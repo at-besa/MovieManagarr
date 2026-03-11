@@ -7,14 +7,8 @@ namespace Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class SettingsController : ControllerBase
+    public class SettingsController(AppDbContext context) : ControllerBase
     {
-        private readonly AppDbContext context;
-
-        public SettingsController(AppDbContext context)
-        {
-            this.context = context;
-        }
 
         [HttpGet]
         public async Task<IActionResult> GetSettings()

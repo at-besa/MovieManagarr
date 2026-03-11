@@ -5,24 +5,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Services
 {
-    public class MediaProcessorService : IMediaProcessorService
+    public class MediaProcessorService(IServiceScopeFactory scopeFactory, IFileSystemMonitorService monitor) : IMediaProcessorService
     {
-        private readonly IServiceScopeFactory scopeFactory;
-        private readonly IFileSystemMonitorService monitor;
-
-        public MediaProcessorService(IServiceScopeFactory scopeFactory, IFileSystemMonitorService monitor)
-        {
-            this.scopeFactory = scopeFactory;
-            this.monitor = monitor;
-            
-            this.monitor.OnFileDetected += async (s, filePath) =>
-            {
-                await ProcessFileAsync(filePath);
-            };
-        }
+        private bool isMonitoringInitialized = false;
 
         public void StartMonitoring(string directoryPath)
         {
+            if (!isMonitoringInitialized)
+            {
+                monitor.OnFileDetected += async (s, filePath) => await ProcessFileAsync(filePath);
+                isMonitoringInitialized = true;
+            }
             monitor.StartMonitoring(directoryPath);
         }
 
