@@ -4,29 +4,29 @@ namespace Backend.Services
 {
     public class FileSystemMonitorService : IFileSystemMonitorService, IDisposable
     {
-        private FileSystemWatcher? _watcher;
-        private readonly IServiceScopeFactory _scopeFactory;
+        private FileSystemWatcher? watcher;
+        private readonly IServiceScopeFactory scopeFactory;
         
         public event EventHandler<string>? OnFileDetected;
 
         public FileSystemMonitorService(IServiceScopeFactory scopeFactory)
         {
-            _scopeFactory = scopeFactory;
+            this.scopeFactory = scopeFactory;
         }
 
         public void StartMonitoring(string directoryPath)
         {
             if (!Directory.Exists(directoryPath)) return;
 
-            _watcher = new FileSystemWatcher(directoryPath)
+            watcher = new FileSystemWatcher(directoryPath)
             {
                 NotifyFilter = NotifyFilters.FileName | NotifyFilters.CreationTime | NotifyFilters.LastWrite,
                 EnableRaisingEvents = true,
                 IncludeSubdirectories = true
             };
 
-            _watcher.Created += OnCreated;
-            _watcher.Renamed += OnRenamed;
+            watcher.Created += OnCreated;
+            watcher.Renamed += OnRenamed;
         }
 
         private void OnCreated(object sender, FileSystemEventArgs e) => TriggerEventIfVideo(e.FullPath);
@@ -39,7 +39,7 @@ namespace Backend.Services
 
             if (videoExtensions.Contains(ext))
             {
-                using var scope = _scopeFactory.CreateScope();
+                using var scope = scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<Backend.Data.AppDbContext>();
                 var config = db.Settings.FirstOrDefault();
                 
@@ -63,11 +63,11 @@ namespace Backend.Services
 
         public void StopMonitoring()
         {
-            if (_watcher != null)
+            if (watcher != null)
             {
-                _watcher.EnableRaisingEvents = false;
-                _watcher.Dispose();
-                _watcher = null;
+                watcher.EnableRaisingEvents = false;
+                watcher.Dispose();
+                watcher = null;
             }
         }
 

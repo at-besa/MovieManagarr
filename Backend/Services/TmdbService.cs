@@ -8,16 +8,16 @@ namespace Backend.Services
 {
     public class TmdbService : ITmdbService
     {
-        private readonly AppDbContext _context;
+        private readonly AppDbContext context;
 
         public TmdbService(AppDbContext context)
         {
-            _context = context;
+            this.context = context;
         }
 
         private async Task<TMDbClient> GetClientAsync()
         {
-            var config = await _context.Settings.FirstOrDefaultAsync();
+            var config = await context.Settings.FirstOrDefaultAsync();
             var apiKey = config?.TmdbApiKey ?? "";
             return new TMDbClient(apiKey);
         }

@@ -9,17 +9,17 @@ namespace Backend.Controllers
     [Route("api/[controller]")]
     public class SettingsController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly AppDbContext context;
 
         public SettingsController(AppDbContext context)
         {
-            _context = context;
+            this.context = context;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetSettings()
         {
-            var config = await _context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
+            var config = await context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
             if (config == null)
             {
                 return Ok(new SettingsDto());
@@ -43,11 +43,11 @@ namespace Backend.Controllers
         [HttpPost]
         public async Task<IActionResult> SaveSettings([FromBody] SettingsDto dto)
         {
-            var config = await _context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
+            var config = await context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
             if (config == null)
             {
                 config = new ConfigurationSetting();
-                _context.Settings.Add(config);
+                context.Settings.Add(config);
             }
 
             config.TmdbApiKey = dto.TmdbApiKey;
@@ -63,7 +63,7 @@ namespace Backend.Controllers
 
             config.FfmpegPath = dto.FfmpegPath;
 
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
             return Ok(new { success = true });
         }
     }

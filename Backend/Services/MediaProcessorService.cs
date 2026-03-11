@@ -7,15 +7,15 @@ namespace Backend.Services
 {
     public class MediaProcessorService : IMediaProcessorService
     {
-        private readonly IServiceScopeFactory _scopeFactory;
-        private readonly IFileSystemMonitorService _monitor;
+        private readonly IServiceScopeFactory scopeFactory;
+        private readonly IFileSystemMonitorService monitor;
 
         public MediaProcessorService(IServiceScopeFactory scopeFactory, IFileSystemMonitorService monitor)
         {
-            _scopeFactory = scopeFactory;
-            _monitor = monitor;
+            this.scopeFactory = scopeFactory;
+            this.monitor = monitor;
             
-            _monitor.OnFileDetected += async (s, filePath) =>
+            this.monitor.OnFileDetected += async (s, filePath) =>
             {
                 await ProcessFileAsync(filePath);
             };
@@ -23,14 +23,14 @@ namespace Backend.Services
 
         public void StartMonitoring(string directoryPath)
         {
-            _monitor.StartMonitoring(directoryPath);
+            monitor.StartMonitoring(directoryPath);
         }
 
         public async Task<bool> ProcessFileAsync(string filePath, MediaMetadata? manualMatch = null)
         {
             try
             {
-                using var scope = _scopeFactory.CreateScope();
+                using var scope = scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                 var config = await db.Settings.FirstOrDefaultAsync();
 

@@ -11,22 +11,22 @@ namespace Backend.Controllers
     [Route("api/[controller]")]
     public class SystemController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly AppDbContext context;
 
         public SystemController(AppDbContext context)
         {
-            _context = context;
+            this.context = context;
         }
 
         [HttpGet("info")]
         public async Task<IActionResult> GetSystemInfo()
         {
-            var config = await _context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
+            var config = await context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
 
             string dbStatus = "Offline";
             try
             {
-                var canConnect = await _context.Database.CanConnectAsync();
+                var canConnect = await context.Database.CanConnectAsync();
                 if (canConnect) dbStatus = "Online";
             }
             catch { }

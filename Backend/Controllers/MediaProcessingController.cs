@@ -10,10 +10,10 @@ namespace Backend.Controllers
     [Route("api/[controller]")]
     public class MediaProcessingController : ControllerBase
     {
-        private readonly AppDbContext _context;
-        private readonly IMediaProcessorService _processor;
-        private readonly IRenamerService _renamer;
-        private readonly ITmdbService _tmdb;
+        private readonly AppDbContext context;
+        private readonly IMediaProcessorService processor;
+        private readonly IRenamerService renamer;
+        private readonly ITmdbService tmdb;
 
         public MediaProcessingController(
             AppDbContext context, 
@@ -21,16 +21,16 @@ namespace Backend.Controllers
             IRenamerService renamer,
             ITmdbService tmdb)
         {
-            _context = context;
-            _processor = processor;
-            _renamer = renamer;
-            _tmdb = tmdb;
+            this.context = context;
+            this.processor = processor;
+            this.renamer = renamer;
+            this.tmdb = tmdb;
         }
 
         [HttpGet("queue")]
         public async Task<IActionResult> GetQueue()
         {
-            var config = await _context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
+            var config = await context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
             if (config == null || string.IsNullOrWhiteSpace(config.SourceDir) || !Directory.Exists(config.SourceDir))
             {
                 return Ok(new List<string>());
@@ -53,7 +53,7 @@ namespace Backend.Controllers
             var resultList = new List<object>();
             foreach (var f in files)
             {
-                var (title, year, season, episode) = _renamer.ParseRawFilename(f);
+                var (title, year, season, episode) = renamer.ParseRawFilename(f);
                 string posterUrl = "";
                 int tmdbId = 0;
 
@@ -61,13 +61,13 @@ namespace Backend.Controllers
                 {
                     if (season.HasValue) 
                     {
-                        var res = await _tmdb.SearchSeriesAsync(title, year > 1900 ? year : null);
+                        var res = await tmdb.SearchSeriesAsync(title, year > 1900 ? year : null);
                         var first = res.FirstOrDefault();
                         if (first != null) { posterUrl = first.PosterUrl; tmdbId = first.Id; title = first.Title; year = first.Year; }
                     }
                     else 
                     {
-                        var res = await _tmdb.SearchMoviesAsync(title, year > 1900 ? year : null);
+                        var res = await tmdb.SearchMoviesAsync(title, year > 1900 ? year : null);
                         var first = res.FirstOrDefault();
                         if (first != null) { posterUrl = first.PosterUrl; tmdbId = first.Id; title = first.Title; year = first.Year; }
                     }
@@ -85,7 +85,7 @@ namespace Backend.Controllers
         [HttpPost("scan")]
         public async Task<IActionResult> TriggerScan()
         {
-            var config = await _context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
+            var config = await context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
             if (config == null || string.IsNullOrWhiteSpace(config.SourceDir) || !Directory.Exists(config.SourceDir))
             {
                 return BadRequest(new { message = "Source directory is not configured or does not exist." });
@@ -109,7 +109,7 @@ namespace Backend.Controllers
             {
                 // In a real application we might want to run this in a background worker, 
                 // but for this demo, doing it synchronously allows us to return the count.
-                bool success = await _processor.ProcessFileAsync(file);
+                bool success = await processor.ProcessFileAsync(file);
                 if (success) successCount++;
             }
 
@@ -123,7 +123,7 @@ namespace Backend.Controllers
                 return BadRequest("Filename is required.");
 
             // Pass the entire relative path so RenamerService can inspect the directory too
-            var (title, year, season, episode) = _renamer.ParseRawFilename(filename);
+            var (title, year, season, episode) = renamer.ParseRawFilename(filename);
             
             return Ok(new { title, year, season, episode });
         }
@@ -141,24 +141,24 @@ namespace Backend.Controllers
                 {
                     if (isSeries)
                     {
-                        var result = await _tmdb.GetSeriesByIdAsync(tmdbId);
+                        var result = await tmdb.GetSeriesByIdAsync(tmdbId);
                         return Ok(result == null ? new List<MediaMetadata>() : new List<MediaMetadata> { result });
                     }
                     else
                     {
-                        var result = await _tmdb.GetMovieByIdAsync(tmdbId);
+                        var result = await tmdb.GetMovieByIdAsync(tmdbId);
                         return Ok(result == null ? new List<MediaMetadata>() : new List<MediaMetadata> { result });
                     }
                 }
 
                 if (isSeries)
                 {
-                    var results = await _tmdb.SearchSeriesAsync(title, year > 1900 ? year : null);
+                    var results = await tmdb.SearchSeriesAsync(title, year > 1900 ? year : null);
                     return Ok(results);
                 }
                 else
                 {
-                    var results = await _tmdb.SearchMoviesAsync(title, year > 1900 ? year : null);
+                    var results = await tmdb.SearchMoviesAsync(title, year > 1900 ? year : null);
                     return Ok(results);
                 }
             }
@@ -177,7 +177,7 @@ namespace Backend.Controllers
         [HttpPost("process")]
         public async Task<IActionResult> ProcessSingleFile([FromBody] ProcessRequestDto dto)
         {
-            var config = await _context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
+            var config = await context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
             if (config == null || string.IsNullOrWhiteSpace(config.SourceDir))
             {
                 return BadRequest(new { message = "Source directory is not configured." });
@@ -189,7 +189,7 @@ namespace Backend.Controllers
                 return NotFound(new { message = "File not found locally." });
             }
 
-            bool success = await _processor.ProcessFileAsync(fullPath, dto.Metadata);
+            bool success = await processor.ProcessFileAsync(fullPath, dto.Metadata);
             if (success)
             {
                 return Ok(new { success = true });

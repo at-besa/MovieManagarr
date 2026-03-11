@@ -7,17 +7,17 @@ namespace Backend.Services
 {
     public class TranscodingService : ITranscodingService
     {
-        private readonly ConcurrentDictionary<string, TranscodeJob> _jobs = new();
+        private readonly ConcurrentDictionary<string, TranscodeJob> jobs = new();
 
         public TranscodeJob? GetJobStatus(string jobId)
         {
-            _jobs.TryGetValue(jobId, out var job);
+            jobs.TryGetValue(jobId, out var job);
             return job;
         }
 
         public bool CancelJob(string jobId)
         {
-            if (_jobs.TryGetValue(jobId, out var job))
+            if (jobs.TryGetValue(jobId, out var job))
             {
                 if (job.Status == "Running")
                 {
@@ -132,7 +132,7 @@ namespace Backend.Services
             var ext = Path.GetExtension(filePath);
             job.OutputPath = Path.Combine(dir, $"{name}_hevc{ext}");
 
-            _jobs[job.JobId] = job;
+            jobs[job.JobId] = job;
 
             // Run transcode in background
             _ = Task.Run(async () =>

@@ -10,15 +10,15 @@ namespace Backend.Controllers
     [Route("api/transcode")]
     public class TranscodingController : ControllerBase
     {
-        private readonly AppDbContext _context;
-        private readonly IMediaAnalysisService _analyzer;
-        private readonly ITranscodingService _transcoder;
+        private readonly AppDbContext context;
+        private readonly IMediaAnalysisService analyzer;
+        private readonly ITranscodingService transcoder;
 
         public TranscodingController(AppDbContext context, IMediaAnalysisService analyzer, ITranscodingService transcoder)
         {
-            _context = context;
-            _analyzer = analyzer;
-            _transcoder = transcoder;
+            this.context = context;
+            this.analyzer = analyzer;
+            this.transcoder = transcoder;
         }
 
         /// <summary>
@@ -27,7 +27,7 @@ namespace Backend.Controllers
         [HttpGet("files")]
         public async Task<IActionResult> GetFiles()
         {
-            var config = await _context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
+            var config = await context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
             if (config == null) return Ok(new List<object>());
 
             var extensions = new[] { ".mkv", ".mp4", ".avi", ".mov" };
@@ -66,8 +66,8 @@ namespace Backend.Controllers
             if (string.IsNullOrWhiteSpace(path) || !System.IO.File.Exists(path))
                 return BadRequest(new { message = "File not found." });
 
-            var config = await _context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
-            var analysis = await _analyzer.AnalyzeFileAsync(path, config?.FfmpegPath);
+            var config = await context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
+            var analysis = await analyzer.AnalyzeFileAsync(path, config?.FfmpegPath);
 
             return Ok(analysis);
         }
@@ -81,9 +81,9 @@ namespace Backend.Controllers
             if (string.IsNullOrWhiteSpace(dto.FilePath) || !System.IO.File.Exists(dto.FilePath))
                 return BadRequest(new { message = "File not found." });
 
-            var config = await _context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
-            var analysis = await _analyzer.AnalyzeFileAsync(dto.FilePath, config?.FfmpegPath);
-            long estimated = _transcoder.EstimateOutputSize(analysis, dto.Settings);
+            var config = await context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
+            var analysis = await analyzer.AnalyzeFileAsync(dto.FilePath, config?.FfmpegPath);
+            long estimated = transcoder.EstimateOutputSize(analysis, dto.Settings);
 
             return Ok(new
             {
@@ -104,7 +104,7 @@ namespace Backend.Controllers
             if (string.IsNullOrWhiteSpace(dto.FilePath) || !System.IO.File.Exists(dto.FilePath))
                 return BadRequest(new { message = "File not found." });
 
-            var config = await _context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
+            var config = await context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
             
             // Apply default HW accel if not specified
             if (string.IsNullOrWhiteSpace(dto.Settings.HwAcceleration))
@@ -113,9 +113,9 @@ namespace Backend.Controllers
             }
 
             // Get size estimate before starting
-            var analysis = await _analyzer.AnalyzeFileAsync(dto.FilePath, config?.FfmpegPath);
-            var job = await _transcoder.StartTranscodeAsync(dto.FilePath, dto.Settings, config?.FfmpegPath ?? "");
-            job.EstimatedOutputBytes = _transcoder.EstimateOutputSize(analysis, dto.Settings);
+            var analysis = await analyzer.AnalyzeFileAsync(dto.FilePath, config?.FfmpegPath);
+            var job = await transcoder.StartTranscodeAsync(dto.FilePath, dto.Settings, config?.FfmpegPath ?? "");
+            job.EstimatedOutputBytes = transcoder.EstimateOutputSize(analysis, dto.Settings);
 
             return Ok(new { jobId = job.JobId, estimatedBytes = job.EstimatedOutputBytes });
         }
@@ -126,7 +126,7 @@ namespace Backend.Controllers
         [HttpGet("status/{jobId}")]
         public IActionResult GetStatus(string jobId)
         {
-            var job = _transcoder.GetJobStatus(jobId);
+            var job = transcoder.GetJobStatus(jobId);
             if (job == null) return NotFound(new { message = "Job not found." });
 
             return Ok(new
@@ -148,7 +148,7 @@ namespace Backend.Controllers
         [HttpPost("cancel/{jobId}")]
         public IActionResult CancelJob(string jobId)
         {
-            var success = _transcoder.CancelJob(jobId);
+            var success = transcoder.CancelJob(jobId);
             if (!success) return BadRequest(new { message = "Job not found or already completed/canceled." });
 
             return Ok(new { message = "Job canceled successfully." });
@@ -166,7 +166,7 @@ namespace Backend.Controllers
 
             while (true)
             {
-                var job = _transcoder.GetJobStatus(jobId);
+                var job = transcoder.GetJobStatus(jobId);
                 if (job == null)
                 {
                     await Response.WriteAsync($"data: {{\"error\": \"Job not found\"}}\n\n");
@@ -199,11 +199,11 @@ namespace Backend.Controllers
             if (string.IsNullOrWhiteSpace(dto.FilePath) || !System.IO.File.Exists(dto.FilePath))
                 return BadRequest(new { message = "File not found." });
 
-            var config = await _context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
+            var config = await context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
 
             try
             {
-                var filename = await _transcoder.GeneratePreviewClipAsync(dto.FilePath, config?.FfmpegPath ?? "");
+                var filename = await transcoder.GeneratePreviewClipAsync(dto.FilePath, config?.FfmpegPath ?? "");
                 return Ok(new { previewUrl = $"/api/transcode/preview/{filename}" });
             }
             catch (Exception ex)
