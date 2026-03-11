@@ -9,7 +9,8 @@ RUN npm run build
 # Production Stage
 FROM nginx:stable-alpine AS production-stage
 COPY --from=build-stage /app/dist /usr/share/nginx/html
-# Custom nginx config to handle SPA routing
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Custom nginx config template for environment variable substitution
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 EXPOSE 80
+
 CMD ["nginx", "-g", "daemon off;"]

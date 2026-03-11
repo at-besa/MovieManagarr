@@ -9,10 +9,8 @@ server {
     }
 
     # Proxy API requests to the backend
-    # This assumes the backend is accessible at this URL from the client's browser
-    # or you can configure a relative proxy if they are on same origin
     location /api {
-        proxy_pass http://host.docker.internal:5294/api;
+        proxy_pass ${BACKEND_URL}/api;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';

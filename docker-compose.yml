@@ -22,6 +22,8 @@ services:
     depends_on:
       - db
     restart: unless-stopped
+    environment:
+      - BACKEND_URL=http://host.docker.internal:5294
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
