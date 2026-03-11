@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
-import { ref } from 'vue'
 import { useHealthCheck } from './composables/useHealthCheck'
 
 const { isBackendOffline, isDbOffline, checkHealth } = useHealthCheck()
