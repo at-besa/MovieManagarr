@@ -59,11 +59,11 @@ app.MapGet("/api/health", async (IServiceProvider provider) =>
         if (canConnect) 
             return Results.Ok(new { Status = "Healthy" });
         else 
-            return Results.StatusCode(503); // Return 503 instead of Ok, with custom status text handled by frontend if we want
+            return Results.Problem(detail: "Database connection failed", title: "DB_OFFLINE", statusCode: 503);
     } 
-    catch 
+    catch (Exception ex)
     {
-        return Results.Problem(detail: "Database connection failed", title: "DB_OFFLINE", statusCode: 503);
+        return Results.Problem(detail: ex.Message, title: "DB_OFFLINE", statusCode: 503);
     }
 });
 
